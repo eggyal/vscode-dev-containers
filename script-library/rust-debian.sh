@@ -7,7 +7,7 @@
 # Docs: https://github.com/microsoft/vscode-dev-containers/blob/main/script-library/docs/rust.md
 # Maintainer: The VS Code and Codespaces Teams
 #
-# Syntax: ./rust-debian.sh [CARGO_HOME] [RUSTUP_HOME] [non-root user] [add CARGO/RUSTUP_HOME to rc files flag] [whether to update rust] [Rust version] [rustup install profile]
+# Syntax: ./rust-debian.sh [CARGO_HOME] [RUSTUP_HOME] [non-root user] [add CARGO/RUSTUP_HOME to rc files flag] [whether to update rust] [Rust version] [rustup install profile] [rustup version]
 
 export CARGO_HOME=${1:-"/usr/local/cargo"}
 export RUSTUP_HOME=${2:-"/usr/local/rustup"}
@@ -16,6 +16,7 @@ UPDATE_RC=${4:-"true"}
 UPDATE_RUST=${5:-"false"}
 RUST_VERSION=${6:-"latest"}
 RUSTUP_PROFILE=${7:-"minimal"}
+RUSTUP_VERSION=${8:-"dist"}
 
 set -e
 
@@ -121,10 +122,10 @@ apt_get_update_if_needed()
 export DEBIAN_FRONTEND=noninteractive
 
 # Install curl, lldb, python3-minimal,libpython and rust dependencies if missing
-if ! dpkg -s curl ca-certificates gnupg2 lldb python3-minimal gcc libc6-dev > /dev/null 2>&1; then
+if ! dpkg -s curl ca-certificates lldb python3-minimal gcc libc6-dev > /dev/null 2>&1; then
     apt_get_update_if_needed
-    apt-get -y install --no-install-recommends curl ca-certificates gcc libc6-dev
-    apt-get -y install lldb python3-minimal libpython3.?
+    install_maybe_pinned curl ca-certificates gcc libc6-dev
+    install_maybe_pinned --install-recommends lldb python3-minimal libpython3.9
 fi
 
 architecture="$(dpkg --print-architecture)"
@@ -160,16 +161,19 @@ else
         # Find version using soft match
         if ! type git > /dev/null 2>&1; then
             apt_get_update_if_needed
-            apt-get -y install --no-install-recommends git
+            install_maybe_pinned git
         fi
         find_version_from_git_tags RUST_VERSION "https://github.com/rust-lang/rust" "tags/"
         default_toolchain_arg="--default-toolchain ${RUST_VERSION}"
     fi
+    if [ "${RUSTUP_VERSION}" != "dist" ]; then
+        RUSTUP_VERSION="archive/${RUSTUP_VERSION}"
+    fi
     echo "Installing Rust..."
     # Download and verify rustup sha
     mkdir -p /tmp/rustup/target/x86_64-unknown-linux-gnu/release/
-    curl -sSL --proto '=https' --tlsv1.2 "https://static.rust-lang.org/rustup/dist/${download_architecture}-unknown-linux-gnu/rustup-init" -o /tmp/rustup/target/${download_architecture}-unknown-linux-gnu/release/rustup-init
-    curl -sSL --proto '=https' --tlsv1.2 "https://static.rust-lang.org/rustup/dist/${download_architecture}-unknown-linux-gnu/rustup-init.sha256" -o /tmp/rustup/rustup-init.sha256
+    curl -sSL --proto '=https' --tlsv1.2 "https://static.rust-lang.org/rustup/${RUSTUP_VERSION}/${download_architecture}-unknown-linux-gnu/rustup-init" -o /tmp/rustup/target/${download_architecture}-unknown-linux-gnu/release/rustup-init
+    curl -sSL --proto '=https' --tlsv1.2 "https://static.rust-lang.org/rustup/${RUSTUP_VERSION}/${download_architecture}-unknown-linux-gnu/rustup-init.sha256" -o /tmp/rustup/rustup-init.sha256
     cd /tmp/rustup
     sha256sum -c rustup-init.sha256
     chmod +x target/x86_64-unknown-linux-gnu/release/rustup-init

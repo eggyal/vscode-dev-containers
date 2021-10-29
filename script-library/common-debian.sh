@@ -99,7 +99,7 @@ if [ "${PACKAGES_ALREADY_INSTALLED}" != "true" ]; then
         apt-transport-https \
         dialog \
         libc6 \
-        libgcc1 \
+        libgcc-s1 \
         libkrb5-3 \
         libgssapi-krb5-2 \
         libicu[0-9][0-9] \
@@ -155,11 +155,11 @@ if [ "${PACKAGES_ALREADY_INSTALLED}" != "true" ]; then
     fi
 
     echo "Packages to verify are installed: ${package_list}"
-    apt-get -y install --no-install-recommends ${package_list} 2> >( grep -v 'debconf: delaying package configuration, since apt-utils is not installed' >&2 )
+    install_maybe_pinned ${package_list} 2> >( grep -v 'debconf: delaying package configuration, since apt-utils is not installed' >&2 )
         
     # Install git if not already installed (may be more recent than distro version)
     if ! type git > /dev/null 2>&1; then
-        apt-get -y install --no-install-recommends git
+        install_maybe_pinned git
     fi
 
     PACKAGES_ALREADY_INSTALLED="true"
@@ -394,7 +394,7 @@ fi
 if [ "${INSTALL_ZSH}" = "true" ]; then
     if ! type zsh > /dev/null 2>&1; then
         apt_get_update_if_needed
-        apt-get install -y zsh
+        install_maybe_pinned --install-recommends zsh
     fi
     if [ "${ZSH_ALREADY_INSTALLED}" != "true" ]; then
         echo "${rc_snippet}" >> /etc/zsh/zshrc
